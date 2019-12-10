@@ -1,222 +1,181 @@
-use lambda_runtime::{error::HandlerError, lambda};
+#[macro_use]
+extern crate serde_derive;
+#[macro_use]
+extern crate log;
+
+use http::StatusCode;
+use lambda_http::{lambda, Body, IntoResponse, Request, Response};
+use lambda_runtime::{error::HandlerError, Context};
+use rusoto_core::Region;
+use rusoto_dynamodb::{
+    AttributeValue, DynamoDb, DynamoDbClient, PutItemError, PutItemInput, ScanInput,
+};
+use std::collections::HashMap;
 use std::error::Error;
-use serde_derive::{Serialize, Deserialize};
 
-// Struct that will hold information of the request.
-// When we use an API Gateway as a proxy, which is the default
-// behaviour when we create it from the Lambda website, the request
-// will have a specific format with many different parameters.
-// We're only going to use `query` to check the
-// query string parameters (normally for GET requests) and `body`
-// to check for messages usually coming from POST requests.
-#[derive(Deserialize, Clone)]
-struct CustomEvent {
-    // note that we're using serde to help us to change
-    // the names of parameters accordingly to conventions.
-    #[serde(rename = "query")]
-    query_string_parameters: Option<QueryString>,
-    body: Option<String>,
+#[derive(Deserialize, Serialize, Debug, Clone)]
+struct User {
+    username: String,
+    email: String,
+    age: i32,
 }
 
-#[derive(Deserialize, Clone)]
-struct QueryString {
-    #[serde(rename = "domainName")]
-    first_name: Option<String>,
-}
+impl From<&HashMap<String, AttributeValue>> for User {
+    fn from(attr_map: &HashMap<String, AttributeValue>) -> Self {
+        let age = attr_map
+            .get("age")
+            .and_then(|v| v.n.clone())
+            .unwrap_or_default();
+        let username = attr_map
+            .get("username")
+            .and_then(|v| v.s.clone())
+            .unwrap_or_default();
+        let email = attr_map
+            .get("email")
+            .and_then(|v| v.s.clone())
+            .unwrap_or_default();
 
-#[derive(Deserialize, Clone)]
-struct Body {
-    #[serde(rename = "domainName")]
-    first_name: Option<String>,
-}
-
-// Struct used for our function's response.
-// Note again that we're using `serde`.
-// It's also important to notice that you will need to explicitely
-// inform these properties for our API Gateway to work.
-// If you miss some of these properties you will likely get
-// a 502 error.
-#[derive(Serialize, Clone)]
-struct CustomOutput {
-    #[serde(rename = "isBase64Encoded")]
-    is_base64_encoded: bool,
-    #[serde(rename = "statusCode")]
-    status_code: u16,
-    body: String,
-}
-
-// Just a static method to help us build the `CustomOutput`.
-impl CustomOutput {
-    fn new(body: String) -> Self {
-        CustomOutput {
-            is_base64_encoded: false,
-            status_code: 200,
-            body,
+        User {
+            username,
+            email,
+            age: age.parse::<i32>().unwrap_or_else(|_| 0),
         }
     }
 }
 
-// This is our function entry point.
-// Note the use of the `lambda!` macro. It will hold our handler:
-// pub type Handler<E, O> = fn(E, Context) -> Result<O, HandlerError>
+impl From<HashMap<String, AttributeValue>> for User {
+    fn from(attr_map: HashMap<String, AttributeValue>) -> Self {
+        User::from(&attr_map)
+    }
+}
+
+impl User {
+    fn to_attr_map(&self) -> HashMap<String, AttributeValue> {
+        let mut map = HashMap::new();
+        map.insert(
+            "username".to_string(),
+            AttributeValue {
+                s: Some(self.username.clone()),
+                ..Default::default()
+            },
+        );
+        map.insert(
+            "email".to_string(),
+            AttributeValue {
+                s: Some(self.email.clone()),
+                ..Default::default()
+            },
+        );
+        map.insert(
+            "age".to_string(),
+            AttributeValue {
+                n: Some(self.age.to_string().clone()),
+                ..Default::default()
+            },
+        );
+        map
+    }
+}
+
 fn main() -> Result<(), Box<dyn Error>> {
-    lambda!(my_handler);
+    simple_logger::init_with_level(log::Level::Info)?;
+    lambda!(router);
     Ok(())
 }
 
-// Our handler will just check for a query string parameter called `domainName`.
-// Note the different behavior depending on the value of the parameter.
-// In case there's no query string parameter, we'll check the body of the request.
-// The body comes as a string so we'll have to use `Serde` again to deserialize it.
-// Finally, if we have no body, we'll return a default response.
-fn my_handler(e: CustomEvent, c: lambda_runtime::Context) -> Result<CustomOutput, HandlerError> {
-    // checking the query string
-    if let Some(q) = e.query_string_parameters {
-        if let Some(first_name) = q.first_name {
-            return match first_name.as_ref() {
-                "" => Ok(CustomOutput::new(format!(
-                    "Hello from Rust, my dear default user with empty parameter! (qs)"
-                ))),
-                "error" => Err(c.new_error("Empty first name (qs)")),
-                _ => Ok(CustomOutput::new(format!(
-                    "Hello from Rust, my dear {}! (qs)",
-                    first_name
-                ))),
+// Call handler functionb based on request method
+fn router(req: Request, c: Context) -> Result<impl IntoResponse, HandlerError> {
+    match req.method().as_str() {
+        "POST" => create_user(req, c),
+        "GET" => get_user(req, c),
+        _ => {
+            let mut resp = Response::default();
+            *resp.status_mut() = StatusCode::METHOD_NOT_ALLOWED;
+            Ok(resp)
+        }
+    }
+}
+
+// GET /users
+fn get_user(_req: Request, _c: Context) -> Result<Response<Body>, HandlerError> {
+    let client = DynamoDbClient::new(Region::default());
+    match client
+        .scan(ScanInput {
+            table_name: "users".to_owned(),
+            ..Default::default()
+        })
+        .sync()
+    {
+        Ok(output) => {
+            let users: Vec<User> = output
+                .items
+                .unwrap_or_default()
+                .iter()
+                // HashMap -> User
+                .map(|u| u.into())
+                .collect();
+
+            Ok(serde_json::json!(users).into_response())
+        }
+        Err(e) => {
+            error!("Internal {}", e);
+            Ok(build_resp(
+                "internal error".to_owned(),
+                StatusCode::INTERNAL_SERVER_ERROR,
+            ))
+        }
+    }
+}
+
+// POST /users
+fn create_user(req: Request, _c: Context) -> Result<Response<Body>, HandlerError> {
+    // validate user in body
+    match serde_json::from_slice::<User>(req.body().as_ref()) {
+        Ok(user) => {
+            let client = DynamoDbClient::new(Region::UsEast1);
+            let input = PutItemInput {
+                condition_expression: Some("attribute_not_exists(username)".to_string()),
+                table_name: "users".to_string(),
+                item: user.clone().to_attr_map(),
+                ..Default::default()
             };
+            // try adding user
+            match client.put_item(input).sync() {
+                Ok(_) => {
+                    let mut resp = serde_json::json!(user).into_response();
+                    *resp.status_mut() = StatusCode::CREATED;
+                    Ok(resp)
+                }
+                Err(e) => match e {
+                    PutItemError::ConditionalCheckFailed(_) => Ok(Response::builder()
+                        .status(StatusCode::CONFLICT)
+                        .body(format!("conflict, {} already exists", user.username).into())
+                        .expect("error")),
+                    e => {
+                        error!("{}", e);
+                        Ok(build_resp(
+                            "internal error".to_owned(),
+                            StatusCode::INTERNAL_SERVER_ERROR,
+                        ))
+                    }
+                },
+            }
         }
-    }
-
-    // cheking the body
-    if let Some(b) = e.body {
-        let parsed_body: Result<Body, serde_json::Error> = serde_json::from_str(&b);
-        if let Ok(result) = parsed_body {
-            return match result.first_name.as_ref().map(|s| &s[..]) {
-                Some("") => Ok(CustomOutput::new(format!(
-                    "Hello from Rust, my dear default user with empty parameter! (body)"
-                ))),
-                Some("error") => Err(c.new_error("Empty first name (body)")),
-                _ => Ok(CustomOutput::new(format!(
-                    "Hello from Rust, my dear {}! (body)",
-                    result.first_name.unwrap_or("".to_owned())
-                ))),
-            };
-        }
-    }
-
-    Ok(CustomOutput {
-        is_base64_encoded: false,
-        status_code: 200,
-        body: format!("wwww.google.com"),
-    })
-}
-use lambda_runtime::{error::HandlerError, lambda};
-use std::error::Error;
-use serde_derive::{Serialize, Deserialize};
-
-// Struct that will hold information of the request.
-// When we use an API Gateway as a proxy, which is the default
-// behaviour when we create it from the Lambda website, the request
-// will have a specific format with many different parameters.
-// We're only going to use `query` to check the
-// query string parameters (normally for GET requests) and `body`
-// to check for messages usually coming from POST requests.
-#[derive(Deserialize, Clone)]
-struct CustomEvent {
-    // note that we're using serde to help us to change
-    // the names of parameters accordingly to conventions.
-    #[serde(rename = "query")]
-    query_string_parameters: Option<QueryString>,
-    body: Option<String>,
-}
-
-#[derive(Deserialize, Clone)]
-struct QueryString {
-    #[serde(rename = "domainName")]
-    first_name: Option<String>,
-}
-
-#[derive(Deserialize, Clone)]
-struct Body {
-    #[serde(rename = "domainName")]
-    first_name: Option<String>,
-}
-
-// Struct used for our function's response.
-// Note again that we're using `serde`.
-// It's also important to notice that you will need to explicitely
-// inform these properties for our API Gateway to work.
-// If you miss some of these properties you will likely get
-// a 502 error.
-#[derive(Serialize, Clone)]
-struct CustomOutput {
-    #[serde(rename = "isBase64Encoded")]
-    is_base64_encoded: bool,
-    #[serde(rename = "statusCode")]
-    status_code: u16,
-    body: String,
-}
-
-// Just a static method to help us build the `CustomOutput`.
-impl CustomOutput {
-    fn new(body: String) -> Self {
-        CustomOutput {
-            is_base64_encoded: false,
-            status_code: 200,
-            body,
+        // couldn't deserialize body
+        Err(e) => {
+            error!("error: {}", e);
+            Ok(Response::builder()
+                .status(StatusCode::BAD_REQUEST)
+                .body("bad request".into())
+                .expect("err creating response"))
         }
     }
 }
 
-// This is our function entry point.
-// Note the use of the `lambda!` macro. It will hold our handler:
-// pub type Handler<E, O> = fn(E, Context) -> Result<O, HandlerError>
-fn main() -> Result<(), Box<dyn Error>> {
-    lambda!(domain_handler);
-    Ok(())
-}
-
-// Our handler will just check for a query string parameter called `domainName`.
-// Note the different behavior depending on the value of the parameter.
-// In case there's no query string parameter, we'll check the body of the request.
-// The body comes as a string so we'll have to use `Serde` again to deserialize it.
-// Finally, if we have no body, we'll return a default response.
-fn domain_handler(e: CustomEvent, c: lambda_runtime::Context) -> Result<CustomOutput, HandlerError> {
-    // checking the query string
-    if let Some(q) = e.query_string_parameters {
-        if let Some(first_name) = q.first_name {
-            return match first_name.as_ref() {
-                "" => Ok(CustomOutput::new(format!(
-                    "Hello from Rust, my dear default user with empty parameter! (qs)"
-                ))),
-                "error" => Err(c.new_error("Empty first name (qs)")),
-                _ => Ok(CustomOutput::new(format!(
-                    "Hello from Rust, my dear {}! (qs)",
-                    first_name
-                ))),
-            };
-        }
-    }
-
-    // cheking the body
-    if let Some(b) = e.body {
-        let parsed_body: Result<Body, serde_json::Error> = serde_json::from_str(&b);
-        if let Ok(result) = parsed_body {
-            return match result.first_name.as_ref().map(|s| &s[..]) {
-                Some("") => Ok(CustomOutput::new(format!(
-                    "Hello from Rust, my dear default user with empty parameter! (body)"
-                ))),
-                Some("error") => Err(c.new_error("Empty first name (body)")),
-                _ => Ok(CustomOutput::new(format!(
-                    "Hello from Rust, my dear {}! (body)",
-                    result.first_name.unwrap_or("".to_owned())
-                ))),
-            };
-        }
-    }
-
-    Ok(CustomOutput {
-        is_base64_encoded: false,
-        status_code: 200,
-        body: format!("wwww.google.com"),
-    })
+// simple response builder that uses a str msessage
+fn build_resp(msg: String, status_code: StatusCode) -> Response<Body> {
+    Response::builder()
+        .status(status_code)
+        .body(msg.into())
+        .expect("err creating response")
 }

@@ -1,5 +1,5 @@
 [package]
-name = "aws-lamdba-rust-portal"
+name = "users"
 version = "0.1.0"
 authors = ["立青木白 <cywhoyi@gmail.com>"]
 edition = "2018"
