@@ -1,13 +1,13 @@
 # aws-lamdba-rust-portal
-
+![categorize](https://res.cloudinary.com/lumigo-production/fl_lossy,f_auto/wp-website/2019/06/APIGW-Lambda-1024x593.png)
 
 ## AWS API GATEWAY+LAMDBA
 1. AWS API GATEWAY
-2. lamdba rust function
+2. LAMDBA RUST FUNCTION 
 
 
-## Performance
-
+## A BRIEF OVERVIEW OF API GATEWAY
+![categorize](https://res.cloudinary.com/lumigo-production/fl_lossy,f_auto/wp-website/2019/06/API-Gateway-flow-Amazon.jpg)
 
 
 
