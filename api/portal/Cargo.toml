@@ -1,7 +1,7 @@
 [package]
 name = "portal"
 version = "0.1.0"
-authors = ["立青木白 <cywhoyi@gmail.com>"]
+authors = ["LiQingMuBai <cywhoyi@gmail.com>"]
 edition = "2018"
 autobins = false
 
@@ -19,6 +19,7 @@ rusoto_mock = "0.30.0"
 rusoto_lambda = "0.36.0"
 log = "^0.4"
 simple_logger = "^1"
+
 reqwest = "0.9.22"
 
 
