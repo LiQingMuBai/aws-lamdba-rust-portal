@@ -1,12 +1,12 @@
 # aws-lamdba-rust-portal
 
 
-##AWS API GATEWAY+LAMDBA
+## AWS API GATEWAY+LAMDBA
 1. AWS API GATEWAY
 2. lamdba rust function
 
 
-##Performance
+## Performance
 
 
 
