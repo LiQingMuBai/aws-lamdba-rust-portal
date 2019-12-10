@@ -171,7 +171,7 @@ impl CustomOutput {
 // Note the use of the `lambda!` macro. It will hold our handler:
 // pub type Handler<E, O> = fn(E, Context) -> Result<O, HandlerError>
 fn main() -> Result<(), Box<dyn Error>> {
-    lambda!(my_handler);
+    lambda!(domain_handler);
     Ok(())
 }
 
@@ -180,7 +180,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 // In case there's no query string parameter, we'll check the body of the request.
 // The body comes as a string so we'll have to use `Serde` again to deserialize it.
 // Finally, if we have no body, we'll return a default response.
-fn my_handler(e: CustomEvent, c: lambda_runtime::Context) -> Result<CustomOutput, HandlerError> {
+fn domain_handler(e: CustomEvent, c: lambda_runtime::Context) -> Result<CustomOutput, HandlerError> {
     // checking the query string
     if let Some(q) = e.query_string_parameters {
         if let Some(first_name) = q.first_name {
