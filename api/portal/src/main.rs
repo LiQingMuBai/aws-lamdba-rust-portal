@@ -1,11 +1,11 @@
 #[macro_use]
-extern crate serde_derive;
-#[macro_use]
 extern crate log;
+#[macro_use]
+extern crate serde_derive;
 
 use http::StatusCode;
-use lambda_http::{lambda, Body, IntoResponse, Request, Response};
-use lambda_runtime::{error::HandlerError, Context};
+use lambda_http::{Body, IntoResponse, lambda, Request, Response};
+use lambda_runtime::{Context, error::HandlerError};
 use rusoto_core::Region;
 use rusoto_dynamodb::{
     AttributeValue, DynamoDb, DynamoDbClient, PutItemError, PutItemInput, ScanInput,
@@ -105,26 +105,26 @@ fn get_user(_req: Request, _c: Context) -> Result<Response<Body>, HandlerError> 
             ..Default::default()
         })
         .sync()
-    {
-        Ok(output) => {
-            let users: Vec<User> = output
-                .items
-                .unwrap_or_default()
-                .iter()
-                // HashMap -> User
-                .map(|u| u.into())
-                .collect();
+        {
+            Ok(output) => {
+                let users: Vec<User> = output
+                    .items
+                    .unwrap_or_default()
+                    .iter()
+                    // HashMap -> User
+                    .map(|u| u.into())
+                    .collect();
 
-            Ok(serde_json::json!(users).into_response())
+                Ok(serde_json::json!(users).into_response())
+            }
+            Err(e) => {
+                error!("Internal {}", e);
+                Ok(build_resp(
+                    "internal error".to_owned(),
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                ))
+            }
         }
-        Err(e) => {
-            error!("Internal {}", e);
-            Ok(build_resp(
-                "internal error".to_owned(),
-                StatusCode::INTERNAL_SERVER_ERROR,
-            ))
-        }
-    }
 }
 
 // POST /users
