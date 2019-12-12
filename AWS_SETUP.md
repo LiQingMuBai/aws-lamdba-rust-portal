@@ -1,5 +1,6 @@
 # AWS Setup
 
+
 ## Using Terraform
 We will use terraform to create all the resources needed in AWS. If you are not
 interestd in having terraform provision the resources, use the links below to
