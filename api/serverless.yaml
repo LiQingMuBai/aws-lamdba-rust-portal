@@ -50,37 +50,9 @@ functions:
       - http:
           path: /users
           method: post
-  users-username:
-    handler: users-username 
-    events:
       - http:
-          path: /users/{username}
-          method: get
-          request:
-            parameters:
-              paths:
-                username: true
-      - http:
-          path: /users/{username}
+          path: /users
           method: put
-          request:
-            parameters:
-              paths:
-                username: true
-      - http:
-          path: /users/{username}
-          method: post
-          request:
-            parameters:
-              paths:
-                username: true
-      - http:
-          path: /users/{username}
-          method: delete
-          request:
-            parameters:
-              paths:
-                username: true
 resources:
   Resources:
     UsersTable:
