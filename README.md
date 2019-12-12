@@ -10,6 +10,8 @@
 ![categorize](https://res.cloudinary.com/lumigo-production/fl_lossy,f_auto/wp-website/2019/06/API-Gateway-flow-Amazon.jpg)
 
 
+## AWS RUST LAMDBA 中文说明
+[说明](https://amazonaws-china.com/cn/blogs/china/rust-runtime-for-aws-lambda/)
 
 ### AWS Setup
 Several AWS resources are needed to follow along in the content. This [guide](https://github.com/LiQingMuBai/aws-lamdba-rust-portal/blob/master/AWS_SETUP.md)
