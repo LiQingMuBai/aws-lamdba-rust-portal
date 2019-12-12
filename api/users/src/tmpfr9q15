@@ -1,11 +1,12 @@
-#[macro_use]
-extern crate log;
+
 #[macro_use]
 extern crate serde_derive;
+#[macro_use]
+extern crate log;
 
 use http::StatusCode;
-use lambda_http::{Body, IntoResponse, lambda, Request, Response};
-use lambda_runtime::{Context, error::HandlerError};
+use lambda_http::{lambda, Body, IntoResponse, Request, Response};
+use lambda_runtime::{error::HandlerError, Context};
 use rusoto_core::Region;
 use rusoto_dynamodb::{
     AttributeValue, DynamoDb, DynamoDbClient, PutItemError, PutItemInput, ScanInput,
@@ -16,38 +17,30 @@ use std::error::Error;
 #[derive(Deserialize, Serialize, Debug, Clone)]
 struct User {
     username: String,
-    password: String,
-    code: i32,
-    mobile: String,
+    email: String,
+    age: i32,
+    f
 }
 
 impl From<&HashMap<String, AttributeValue>> for User {
     fn from(attr_map: &HashMap<String, AttributeValue>) -> Self {
-        let code = attr_map
-            .get("code")
+        let age = attr_map
+            .get("age")
             .and_then(|v| v.n.clone())
             .unwrap_or_default();
-
         let username = attr_map
             .get("username")
             .and_then(|v| v.s.clone())
             .unwrap_or_default();
-
-        let password = attr_map
-            .get("password")
+        let email = attr_map
+            .get("email")
             .and_then(|v| v.s.clone())
             .unwrap_or_default();
 
-        let mobile = attr_map
-            .get("mobile")
-            .and_then(|v| v.s.clone())
-            .unwrap_or_default();
         User {
             username,
-            password,
-            code: code.parse::<i32>().unwrap_or_else(|_| 0),
-            mobile,
-
+            email,
+            age: age.parse::<i32>().unwrap_or_else(|_| 0),
         }
     }
 }
@@ -69,23 +62,16 @@ impl User {
             },
         );
         map.insert(
-            "password".to_string(),
+            "email".to_string(),
             AttributeValue {
-                s: Some(self.password.clone()),
+                s: Some(self.email.clone()),
                 ..Default::default()
             },
         );
         map.insert(
-            "code".to_string(),
+            "age".to_string(),
             AttributeValue {
-                n: Some(self.code.to_string().clone()),
-                ..Default::default()
-            },
-        );
-        map.insert(
-            "mobile".to_string(),
-            AttributeValue {
-                s: Some(self.mobile.clone()),
+                n: Some(self.age.to_string().clone()),
                 ..Default::default()
             },
         );
@@ -104,7 +90,6 @@ fn router(req: Request, c: Context) -> Result<impl IntoResponse, HandlerError> {
     match req.method().as_str() {
         "POST" => create_user(req, c),
         "GET" => get_user(req, c),
-        "PUT" => send_user_code(req,c),
         _ => {
             let mut resp = Response::default();
             *resp.status_mut() = StatusCode::METHOD_NOT_ALLOWED;
@@ -112,39 +97,6 @@ fn router(req: Request, c: Context) -> Result<impl IntoResponse, HandlerError> {
         }
     }
 }
-
-// GET /users
-fn send_user_code(_req: Request, _c: Context) -> Result<Response<Body>, HandlerError> {
-    let client = DynamoDbClient::new(Region::default());
-    match client
-        .scan(ScanInput {
-            table_name: "users".to_owned(),
-            ..Default::default()
-        })
-        .sync()
-        {
-            Ok(output) => {
-                let users: Vec<User> = output
-                    .items
-                    .unwrap_or_default()
-                    .iter()
-                    // HashMap -> User
-                    .map(|u| u.into())
-                    .collect();
-
-                Ok(serde_json::json!(users).into_response())
-            }
-            Err(e) => {
-                error!("Internal {}", e);
-                Ok(build_resp(
-                    "internal error".to_owned(),
-                    StatusCode::INTERNAL_SERVER_ERROR,
-                ))
-            }
-        }
-}
-
-
 
 // GET /users
 fn get_user(_req: Request, _c: Context) -> Result<Response<Body>, HandlerError> {
@@ -155,26 +107,26 @@ fn get_user(_req: Request, _c: Context) -> Result<Response<Body>, HandlerError> 
             ..Default::default()
         })
         .sync()
-        {
-            Ok(output) => {
-                let users: Vec<User> = output
-                    .items
-                    .unwrap_or_default()
-                    .iter()
-                    // HashMap -> User
-                    .map(|u| u.into())
-                    .collect();
+    {
+        Ok(output) => {
+            let users: Vec<User> = output
+                .items
+                .unwrap_or_default()
+                .iter()
+                // HashMap -> User
+                .map(|u| u.into())
+                .collect();
 
-                Ok(serde_json::json!(users).into_response())
-            }
-            Err(e) => {
-                error!("Internal {}", e);
-                Ok(build_resp(
-                    "internal error".to_owned(),
-                    StatusCode::INTERNAL_SERVER_ERROR,
-                ))
-            }
+            Ok(serde_json::json!(users).into_response())
         }
+        Err(e) => {
+            error!("Internal {}", e);
+            Ok(build_resp(
+                "internal error".to_owned(),
+                StatusCode::INTERNAL_SERVER_ERROR,
+            ))
+        }
+    }
 }
 
 // POST /users
