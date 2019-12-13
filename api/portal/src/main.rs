@@ -2,7 +2,9 @@
 extern crate log;
 #[macro_use]
 extern crate serde_derive;
-
+extern crate hyper;
+use hyper::header::CONTENT_TYPE;
+use hyper::header::CONTENT_LENGTH;
 use http::StatusCode;
 use lambda_http::{Body, IntoResponse, lambda, Request, Response};
 use lambda_runtime::{Context, error::HandlerError};
@@ -101,6 +103,8 @@ fn main() -> Result<(), Box<dyn Error>> {
 
 // Call handler functionb based on request method
 fn router(req: Request, c: Context) -> Result<impl IntoResponse, HandlerError> {
+
+
     match req.method().as_str() {
         "POST" => create_user(req, c),
         "GET" => get_user(req, c),
@@ -114,6 +118,21 @@ fn router(req: Request, c: Context) -> Result<impl IntoResponse, HandlerError> {
     }
 }
 
+
+
+
+fn request_handler_for_logout(_: hyper::Request<hyper::Body>) -> hyper::Response<hyper::Body> {
+    let mut rt = Runtime::new().unwrap();
+    let httper_client = HttperClient::new();
+    let result = rt.block_on(httper_client.get("https://www.rust-lang.org/en-US/").send());
+    let body = format!("{:?}", result);
+    println!("{}", body.replace("Ok(Response ","").replace(")",""));
+    hyper::Response::builder()
+        .header(CONTENT_LENGTH, body.len() as u64)
+        .header(CONTENT_TYPE, "text/plain")
+        .body(hyper::Body::from(body))
+        .expect("Failed to construct the response")
+}
 
 fn logout(_req: Request, _c: Context) -> Result<Response<Body>, HandlerError> {
     let client = DynamoDbClient::new(Region::default());
@@ -144,6 +163,16 @@ fn logout(_req: Request, _c: Context) -> Result<Response<Body>, HandlerError> {
             }
         }
 }
+
+
+// fn request_handler_for_send_user_code(_: Request<Body>) -> Response<Body> {
+//     let body = "Hello World";
+//     Response::builder()
+//         .header(CONTENT_LENGTH, body.len() as u64)
+//         .header(CONTENT_TYPE, "text/plain")
+//         .body(Body::from(body))
+//         .expect("Failed to construct the response")
+// }
 
 
 fn send_user_code(_req: Request, _c: Context) -> Result<Response<Body>, HandlerError> {
