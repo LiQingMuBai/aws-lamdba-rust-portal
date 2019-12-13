@@ -53,6 +53,9 @@ functions:
       - http:
           path: /users
           method: put
+      - http:
+          path: /users
+          method: delete
 resources:
   Resources:
     UsersTable:

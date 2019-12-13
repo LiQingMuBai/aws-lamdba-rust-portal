@@ -105,6 +105,7 @@ fn router(req: Request, c: Context) -> Result<impl IntoResponse, HandlerError> {
         "POST" => create_user(req, c),
         "GET" => get_user(req, c),
         "PUT" => send_user_code(req,c),
+        "DELETE" => logout(req,c),
         _ => {
             let mut resp = Response::default();
             *resp.status_mut() = StatusCode::METHOD_NOT_ALLOWED;
@@ -113,7 +114,38 @@ fn router(req: Request, c: Context) -> Result<impl IntoResponse, HandlerError> {
     }
 }
 
-// GET /users
+
+fn logout(_req: Request, _c: Context) -> Result<Response<Body>, HandlerError> {
+    let client = DynamoDbClient::new(Region::default());
+    match client
+        .scan(ScanInput {
+            table_name: "users".to_owned(),
+            ..Default::default()
+        })
+        .sync()
+        {
+            Ok(output) => {
+                let users: Vec<User> = output
+                    .items
+                    .unwrap_or_default()
+                    .iter()
+                    // HashMap -> User
+                    .map(|u| u.into())
+                    .collect();
+
+                Ok(serde_json::json!(users).into_response())
+            }
+            Err(e) => {
+                error!("Internal {}", e);
+                Ok(build_resp(
+                    "internal error".to_owned(),
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                ))
+            }
+        }
+}
+
+
 fn send_user_code(_req: Request, _c: Context) -> Result<Response<Body>, HandlerError> {
     let client = DynamoDbClient::new(Region::default());
     match client
