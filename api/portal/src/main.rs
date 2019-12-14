@@ -124,9 +124,18 @@ fn router(req: Request, c: Context) -> Result<impl IntoResponse, HandlerError> {
 fn request_handler_for_logout(_: hyper::Request<hyper::Body>) -> hyper::Response<hyper::Body> {
     let mut rt = Runtime::new().unwrap();
     let httper_client = HttperClient::new();
-    let result = rt.block_on(httper_client.get("https://www.rust-lang.org/en-US/").send());
-    let body = format!("{:?}", result);
-    println!("{}", body.replace("Ok(Response ","").replace(")",""));
+    let response = rt.block_on(httper_client.get("https://www.rust-lang.org/en-US/").send());
+    // let body = format!("{:?}", result);
+    // println!("{}", body.replace("Ok(Response ","").replace(")",""));
+
+
+    // copy the response body directly to stdout
+    let mut buf: Vec<u8> = vec![];
+    response.copy_to(&mut buf)?;
+    let result = std::str::from_utf8(&buf)?;
+
+    println!("{:?}", result.to_string());
+
     hyper::Response::builder()
         .header(CONTENT_LENGTH, body.len() as u64)
         .header(CONTENT_TYPE, "text/plain")
