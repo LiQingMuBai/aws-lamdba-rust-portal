@@ -2,9 +2,7 @@
 extern crate log;
 #[macro_use]
 extern crate serde_derive;
-extern crate hyper;
-use hyper::header::CONTENT_TYPE;
-use hyper::header::CONTENT_LENGTH;
+
 use http::StatusCode;
 use lambda_http::{Body, IntoResponse, lambda, Request, Response};
 use lambda_runtime::{Context, error::HandlerError};
@@ -108,7 +106,7 @@ fn router(req: Request, c: Context) -> Result<impl IntoResponse, HandlerError> {
     match req.method().as_str() {
         "POST" => create_user(req, c),
         "GET" => get_user(req, c),
-        "PUT" => send_user_code(req,c),
+        // "PUT" => send_user_code(req,c),
         "DELETE" => logout(req,c),
         _ => {
             let mut resp = Response::default();
@@ -119,29 +117,51 @@ fn router(req: Request, c: Context) -> Result<impl IntoResponse, HandlerError> {
 }
 
 
+// fn request_handler_for_send_user_code(_: hyper::Request<hyper::Body>) -> hyper::Response<hyper::Body> {
+
+//     let mut rt = Runtime::new().unwrap();
+//     let httper_client = HttperClient::new();
+
+//     let mut response=reqwest::Client::new()
+//     .post("http://localhost:8080/employees/")
+//     .json(&map)
+//     .send()
+//     .unwrap();
+//     let mut buf: Vec<u8> = vec![];
+//     response.copy_to(&mut buf)?;
+//     let body = std::str::from_utf8(&buf).unwrap();
+
+//     println!("{:?}", body.to_string());
+
+//     hyper::Response::builder()
+//         .header(CONTENT_LENGTH, body.len() as u64)
+//         .header(CONTENT_TYPE, "text/plain")
+//         .body(hyper::Body::from(body))
+//         .expect("Failed to construct the response")
 
 
-fn request_handler_for_logout(_: hyper::Request<hyper::Body>) -> hyper::Response<hyper::Body> {
-    let mut rt = Runtime::new().unwrap();
-    let httper_client = HttperClient::new();
-    let response = rt.block_on(httper_client.get("https://www.rust-lang.org/en-US/").send());
-    // let body = format!("{:?}", result);
-    // println!("{}", body.replace("Ok(Response ","").replace(")",""));
+// }
 
 
-    // copy the response body directly to stdout
-    let mut buf: Vec<u8> = vec![];
-    response.copy_to(&mut buf)?;
-    let result = std::str::from_utf8(&buf)?;
+// fn request_handler_for_logout(_: hyper::Request<hyper::Body>) -> hyper::Response<hyper::Body> {
+//     let mut rt = Runtime::new().unwrap();
+//     let httper_client = HttperClient::new();
+//     let response = rt.block_on(httper_client.get("https://www.rust-lang.org/en-US/").send());
+//     // let body = format!("{:?}", result);
+//     // println!("{}", body.replace("Ok(Response ","").replace(")",""));
+//     // copy the response body directly to stdout
+//     let mut buf: Vec<u8> = vec![];
+//     response.copy_to(&mut buf)?;
+//     let body = std::str::from_utf8(&buf)?;
 
-    println!("{:?}", result.to_string());
+//     println!("{:?}", body.to_string());
 
-    hyper::Response::builder()
-        .header(CONTENT_LENGTH, body.len() as u64)
-        .header(CONTENT_TYPE, "text/plain")
-        .body(hyper::Body::from(body))
-        .expect("Failed to construct the response")
-}
+//     hyper::Response::builder()
+//         .header(CONTENT_LENGTH, body.len() as u64)
+//         .header(CONTENT_TYPE, "text/plain")
+//         .body(hyper::Body::from(body))
+//         .expect("Failed to construct the response")
+// }
 
 fn logout(_req: Request, _c: Context) -> Result<Response<Body>, HandlerError> {
     let client = DynamoDbClient::new(Region::default());
@@ -174,45 +194,35 @@ fn logout(_req: Request, _c: Context) -> Result<Response<Body>, HandlerError> {
 }
 
 
-// fn request_handler_for_send_user_code(_: Request<Body>) -> Response<Body> {
-//     let body = "Hello World";
-//     Response::builder()
-//         .header(CONTENT_LENGTH, body.len() as u64)
-//         .header(CONTENT_TYPE, "text/plain")
-//         .body(Body::from(body))
-//         .expect("Failed to construct the response")
+// fn send_user_code(_req: Request, _c: Context) -> Result<Response<Body>, HandlerError> {
+//     let client = DynamoDbClient::new(Region::default());
+//     match client
+//         .scan(ScanInput {
+//             table_name: "users".to_owned(),
+//             ..Default::default()
+//         })
+//         .sync()
+//         {
+//             Ok(output) => {
+//                 let users: Vec<User> = output
+//                     .items
+//                     .unwrap_or_default()
+//                     .iter()
+//                     // HashMap -> User
+//                     .map(|u| u.into())
+//                     .collect();
+
+//                 Ok(serde_json::json!(users).into_response())
+//             }
+//             Err(e) => {
+//                 error!("Internal {}", e);
+//                 Ok(build_resp(
+//                     "internal error".to_owned(),
+//                     StatusCode::INTERNAL_SERVER_ERROR,
+//                 ))
+//             }
+//         }
 // }
-
-
-fn send_user_code(_req: Request, _c: Context) -> Result<Response<Body>, HandlerError> {
-    let client = DynamoDbClient::new(Region::default());
-    match client
-        .scan(ScanInput {
-            table_name: "users".to_owned(),
-            ..Default::default()
-        })
-        .sync()
-        {
-            Ok(output) => {
-                let users: Vec<User> = output
-                    .items
-                    .unwrap_or_default()
-                    .iter()
-                    // HashMap -> User
-                    .map(|u| u.into())
-                    .collect();
-
-                Ok(serde_json::json!(users).into_response())
-            }
-            Err(e) => {
-                error!("Internal {}", e);
-                Ok(build_resp(
-                    "internal error".to_owned(),
-                    StatusCode::INTERNAL_SERVER_ERROR,
-                ))
-            }
-        }
-}
 
 
 
