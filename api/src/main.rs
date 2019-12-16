@@ -42,6 +42,18 @@ fn main() -> Result<(), Box<dyn Error>> {
 }
 
 fn user_handler(e: GetUserEvent, c: lambda::Context) -> Result<CustomOutput, HandlerError> {
+
+  
+    if e.mobile == "" {
+        error!("Empty user name in request {}", c.aws_request_id);
+        return Err(c.new_error("Empty username"));
+    }
+
+    if e.code == "" {
+        error!("Empty user code in request {}", c.aws_request_id);
+        return Err(c.new_error("Empty username"));
+    }
+
     if e.user_name == "" {
         error!("Empty user name in request {}", c.aws_request_id);
         return Err(c.new_error("Empty username"));
@@ -50,11 +62,6 @@ fn user_handler(e: GetUserEvent, c: lambda::Context) -> Result<CustomOutput, Han
         error!("Empty user name in request {}", c.aws_request_id);
         return Err(c.new_error("Empty username"));
     }
-    if e.mobile == "" {
-        error!("Empty user name in request {}", c.aws_request_id);
-        return Err(c.new_error("Empty username"));
-    }
-
 
 
     let mut map = HashMap::new();
