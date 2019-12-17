@@ -47,10 +47,7 @@ fn user_handler(e: GetUserEvent, c: lambda::Context) -> Result<CustomOutput, Han
         return Err(c.new_error("Empty mobile"));
     }
 
-    if e.code == "" {
-        error!("Empty user code in request {}", c.aws_request_id);
-        return Err(c.new_error("Empty code"));
-    }
+  
 
     if e.user_name == "" {
         error!("Empty user name in request {}", c.aws_request_id);
@@ -62,7 +59,7 @@ fn user_handler(e: GetUserEvent, c: lambda::Context) -> Result<CustomOutput, Han
     }
     let mut map = HashMap::new();
     map.insert("userName", e.user_name);
-    map.insert("code", e.code);
+    map.insert("code", e.code.to_string());
     map.insert("password", e.password);
     map.insert("mobile", e.mobile);
     let mut response=reqwest::Client::new()
