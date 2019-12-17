@@ -77,15 +77,15 @@ fn user_handler(e: UserEvent, c: lambda::Context) -> Result<CustomOutput, Handle
 
 fn get_user_handler(e: UserEvent, c: lambda::Context) -> Result<CustomOutput, HandlerError> {
 
-    if e.mobile == "" {
-        error!("Empty user mobile in request {}", c.aws_request_id);
-        return Err(c.new_error("Empty mobile"));
+    if e.mobile == "" && e.user_name == "" {
+        error!("Empty user mobile and user name  in request {}", c.aws_request_id);
+        return Err(c.new_error("both mobile and username are empty"));
     }
 
-    if e.user_name == "" {
-        error!("Empty user name in request {}", c.aws_request_id);
-        return Err(c.new_error("Empty username"));
-    }
+    // if e.user_name == "" {
+    //     error!("Empty user name in request {}", c.aws_request_id);
+    //     return Err(c.new_error("Empty username"));
+    // }
     if e.password == "" {
         error!("Empty user password in request {}", c.aws_request_id);
         return Err(c.new_error("Empty password"));
