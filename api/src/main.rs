@@ -42,16 +42,14 @@ fn main() -> Result<(), Box<dyn Error>> {
 }
 
 fn user_handler(e: GetUserEvent, c: lambda::Context) -> Result<CustomOutput, HandlerError> {
-
-  
     if e.mobile == "" {
-        error!("Empty user name in request {}", c.aws_request_id);
-        return Err(c.new_error("Empty username"));
+        error!("Empty user mobile in request {}", c.aws_request_id);
+        return Err(c.new_error("Empty mobile"));
     }
 
     if e.code == "" {
         error!("Empty user code in request {}", c.aws_request_id);
-        return Err(c.new_error("Empty username"));
+        return Err(c.new_error("Empty code"));
     }
 
     if e.user_name == "" {
@@ -59,33 +57,24 @@ fn user_handler(e: GetUserEvent, c: lambda::Context) -> Result<CustomOutput, Han
         return Err(c.new_error("Empty username"));
     }
     if e.password == "" {
-        error!("Empty user name in request {}", c.aws_request_id);
-        return Err(c.new_error("Empty username"));
+        error!("Empty user password in request {}", c.aws_request_id);
+        return Err(c.new_error("Empty password"));
     }
-
-
     let mut map = HashMap::new();
-    map.insert("firstName", "rust");
-    map.insert("lastName", "json");
-    map.insert("email", "cywhoyi@126.com");
+    map.insert("userName", e.user_name);
+    map.insert("code", e.code);
+    map.insert("password", e.password);
+    map.insert("mobile", e.mobile);
     let mut response=reqwest::Client::new()
     .post(API_BASE_URL)
     .json(&map)
     .send()
     .unwrap();
-    
-    println!("{:?}", response);
-    println!("Status: {}", response.status());
-    println!("Headers:\n{:?}", response.headers());
-
     // copy the response body directly to stdout
     let mut buf: Vec<u8> = vec![];
     response.copy_to(&mut buf).unwrap();
     let result = std::str::from_utf8(&buf).unwrap();
-
-
-    
     Ok(CustomOutput {
-        message: format!("Hello, {}!", e.user_name),
+        message: format!("{}!", result.to_string()),
     })
 }
