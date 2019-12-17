@@ -15,16 +15,16 @@ use std::error::Error;
 
 #[derive(Deserialize, Clone)]
 struct UserEvent {
-    #[serde(rename = "username")]
+    #[serde(rename = "userName")]
     user_name: String,
     #[serde(rename = "password")]
     password: String,
     #[serde(rename = "code")]
-    code: i32,
+    code: u32,
     #[serde(rename = "mobile")]
     mobile: String,
-    #[serde(rename = "type")]
-    type: u32,
+    #[serde(rename = "eventType")]
+    event_type: u32,
 }
 
 
@@ -39,11 +39,11 @@ struct CustomOutput {
 
 // Just a static method to help us build the `CustomOutput`.
 impl CustomOutput {
-    fn new(body: String) -> Self {
+    fn new(message: String) -> Self {
         CustomOutput {
             is_base64_encoded: false,
             status_code: 200,
-            body,
+            message,
         }
     }
 }
@@ -62,10 +62,10 @@ fn main() -> Result<(), Box<dyn Error>> {
 }
 
 fn user_handler(e: UserEvent, c: lambda::Context) -> Result<CustomOutput, HandlerError> {
-    if e.type == 1{
+    if e.event_type == 1{
         return get_user_handler(e, c);
     }
-    else if e.type == 2{
+    else if e.event_type == 2{
         return user_handler_for_send_user_code(e, c);
     }
     else {
