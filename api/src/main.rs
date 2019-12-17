@@ -14,7 +14,7 @@ use lambda::error::HandlerError;
 use std::error::Error;
 
 #[derive(Deserialize, Clone)]
-struct GetUserEvent {
+struct UserEvent {
     #[serde(rename = "username")]
     user_name: String,
     #[serde(rename = "password")]
@@ -23,26 +23,10 @@ struct GetUserEvent {
     code: i32,
     #[serde(rename = "mobile")]
     mobile: String,
+    #[serde(rename = "type")]
+    type: u32,
 }
 
-#[derive(Deserialize, Clone)]
-struct RegisterUserEvent {
-    #[serde(rename = "username")]
-    user_name: String,
-    #[serde(rename = "password")]
-    password: String,
-    #[serde(rename = "code")]
-    code: i32,
-    #[serde(rename = "mobile")]
-    mobile: String,
-}
-
-
-#[derive(Deserialize, Clone)]
-struct GetUserCodeEvent {
-    #[serde(rename = "mobile")]
-    mobile: String,
-}
 
 #[derive(Serialize, Clone)]
 struct CustomOutput {
@@ -67,7 +51,7 @@ impl CustomOutput {
 
 static API_BASE_URL: &str = "http://localhost:8080/user/";
 static API_BASE_USERCODE_URL: &str = "http://localhost:8080/usercode/";
-static API_BASE_REGISTER_URL: &str = "http://localhost:8080/user/register";
+static API_BASE_REGISTER_URL: &str = "http://localhost:8080/user/register/";
 
 
 fn main() -> Result<(), Box<dyn Error>> {
@@ -77,7 +61,21 @@ fn main() -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
-fn user_handler(e: GetUserEvent, c: lambda::Context) -> Result<CustomOutput, HandlerError> {
+fn user_handler(e: UserEvent, c: lambda::Context) -> Result<CustomOutput, HandlerError> {
+    if e.type == 1{
+        return get_user_handler(e, c);
+    }
+    else if e.type == 2{
+        return user_handler_for_send_user_code(e, c);
+    }
+    else {
+        return user_handler_registe_user(e, c);
+    }
+}
+
+
+
+fn get_user_handler(e: UserEvent, c: lambda::Context) -> Result<CustomOutput, HandlerError> {
 
     if e.mobile == "" {
         error!("Empty user mobile in request {}", c.aws_request_id);
@@ -114,7 +112,7 @@ fn user_handler(e: GetUserEvent, c: lambda::Context) -> Result<CustomOutput, Han
     })
 }
 
-fn user_handler_for_send_user_code(e: GetUserCodeEvent, c: lambda::Context) -> Result<CustomOutput, HandlerError> {
+fn user_handler_for_send_user_code(e: UserEvent, c: lambda::Context) -> Result<CustomOutput, HandlerError> {
 
     if e.mobile == "" {
         error!("Empty user mobile in request {}", c.aws_request_id);
@@ -139,7 +137,7 @@ fn user_handler_for_send_user_code(e: GetUserCodeEvent, c: lambda::Context) -> R
     })
 }
 
-fn user_handler_registe_user(e: RegisterUserEvent, c: lambda::Context) -> Result<CustomOutput, HandlerError> {
+fn user_handler_registe_user(e: UserEvent, c: lambda::Context) -> Result<CustomOutput, HandlerError> {
 
     if e.mobile == "" {
         error!("Empty user mobile in request {}", c.aws_request_id);
