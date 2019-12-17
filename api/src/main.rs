@@ -46,8 +46,24 @@ struct GetUserCodeEvent {
 
 #[derive(Serialize, Clone)]
 struct CustomOutput {
+    #[serde(rename = "isBase64Encoded")]
+    is_base64_encoded: bool,
+    #[serde(rename = "statusCode")]
+    status_code: u16,
     message: String,
 }
+
+// Just a static method to help us build the `CustomOutput`.
+impl CustomOutput {
+    fn new(body: String) -> Self {
+        CustomOutput {
+            is_base64_encoded: false,
+            status_code: 200,
+            body,
+        }
+    }
+}
+//https://robertohuertas.com/2018/12/02/aws-lambda-rust/
 
 static API_BASE_URL: &str = "http://localhost:8080/user/";
 static API_BASE_USERCODE_URL: &str = "http://localhost:8080/usercode/";
@@ -90,7 +106,10 @@ fn user_handler(e: GetUserEvent, c: lambda::Context) -> Result<CustomOutput, Han
     let mut buf: Vec<u8> = vec![];
     response.copy_to(&mut buf).unwrap();
     let result = std::str::from_utf8(&buf).unwrap();
+
     Ok(CustomOutput {
+        is_base64_encoded: false,
+        status_code: 200,
         message: format!("{}!", result.to_string()),
     })
 }
@@ -114,6 +133,8 @@ fn user_handler_for_send_user_code(e: GetUserCodeEvent, c: lambda::Context) -> R
     response.copy_to(&mut buf).unwrap();
     let result = std::str::from_utf8(&buf).unwrap();
     Ok(CustomOutput {
+        is_base64_encoded: false,
+        status_code: 200,
         message: format!("{}!", result.to_string()),
     })
 }
@@ -148,6 +169,8 @@ fn user_handler_registe_user(e: RegisterUserEvent, c: lambda::Context) -> Result
     response.copy_to(&mut buf).unwrap();
     let result = std::str::from_utf8(&buf).unwrap();
     Ok(CustomOutput {
+        is_base64_encoded: false,
+        status_code: 200,
         message: format!("{}!", result.to_string()),
     })
 }
