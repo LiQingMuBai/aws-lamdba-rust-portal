@@ -23,7 +23,25 @@ struct GetUserEvent {
     code: i32,
     #[serde(rename = "mobile")]
     mobile: String,
+}
 
+#[derive(Deserialize, Clone)]
+struct RegisterUserEvent {
+    #[serde(rename = "username")]
+    user_name: String,
+    #[serde(rename = "password")]
+    password: String,
+    #[serde(rename = "code")]
+    code: i32,
+    #[serde(rename = "mobile")]
+    mobile: String,
+}
+
+
+#[derive(Deserialize, Clone)]
+struct GetUserCodeEvent {
+    #[serde(rename = "mobile")]
+    mobile: String,
 }
 
 #[derive(Serialize, Clone)]
@@ -32,6 +50,8 @@ struct CustomOutput {
 }
 
 static API_BASE_URL: &str = "http://localhost:8080/user/";
+static API_BASE_USERCODE_URL: &str = "http://localhost:8080/usercode/";
+static API_BASE_REGISTER_URL: &str = "http://localhost:8080/user/register";
 
 
 fn main() -> Result<(), Box<dyn Error>> {
@@ -42,12 +62,11 @@ fn main() -> Result<(), Box<dyn Error>> {
 }
 
 fn user_handler(e: GetUserEvent, c: lambda::Context) -> Result<CustomOutput, HandlerError> {
+
     if e.mobile == "" {
         error!("Empty user mobile in request {}", c.aws_request_id);
         return Err(c.new_error("Empty mobile"));
     }
-
-  
 
     if e.user_name == "" {
         error!("Empty user name in request {}", c.aws_request_id);
@@ -64,6 +83,63 @@ fn user_handler(e: GetUserEvent, c: lambda::Context) -> Result<CustomOutput, Han
     map.insert("mobile", e.mobile);
     let mut response=reqwest::Client::new()
     .post(API_BASE_URL)
+    .json(&map)
+    .send()
+    .unwrap();
+    // copy the response body directly to stdout
+    let mut buf: Vec<u8> = vec![];
+    response.copy_to(&mut buf).unwrap();
+    let result = std::str::from_utf8(&buf).unwrap();
+    Ok(CustomOutput {
+        message: format!("{}!", result.to_string()),
+    })
+}
+
+fn user_handler_for_send_user_code(e: GetUserCodeEvent, c: lambda::Context) -> Result<CustomOutput, HandlerError> {
+
+    if e.mobile == "" {
+        error!("Empty user mobile in request {}", c.aws_request_id);
+        return Err(c.new_error("Empty mobile"));
+    }
+
+    let mut map = HashMap::new();
+    map.insert("code", e.code.to_string());
+    let mut response=reqwest::Client::new()
+    .post(API_BASE_USERCODE_URL)
+    .json(&map)
+    .send()
+    .unwrap();
+    // copy the response body directly to stdout
+    let mut buf: Vec<u8> = vec![];
+    response.copy_to(&mut buf).unwrap();
+    let result = std::str::from_utf8(&buf).unwrap();
+    Ok(CustomOutput {
+        message: format!("{}!", result.to_string()),
+    })
+}
+
+fn user_handler_registe_user(e: RegisterUserEvent, c: lambda::Context) -> Result<CustomOutput, HandlerError> {
+
+    if e.mobile == "" {
+        error!("Empty user mobile in request {}", c.aws_request_id);
+        return Err(c.new_error("Empty mobile"));
+    }
+
+    if e.user_name == "" {
+        error!("Empty user name in request {}", c.aws_request_id);
+        return Err(c.new_error("Empty username"));
+    }
+    if e.password == "" {
+        error!("Empty user password in request {}", c.aws_request_id);
+        return Err(c.new_error("Empty password"));
+    }
+    let mut map = HashMap::new();
+    map.insert("userName", e.user_name);
+    map.insert("code", e.code.to_string());
+    map.insert("password", e.password);
+    map.insert("mobile", e.mobile);
+    let mut response=reqwest::Client::new()
+    .post(API_BASE_REGISTER_URL)
     .json(&map)
     .send()
     .unwrap();
