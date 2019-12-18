@@ -48,8 +48,9 @@ impl CustomOutput {
     }
 }
 //https://robertohuertas.com/2018/12/02/aws-lambda-rust/
+static API_BASE_URL: &str = "http://localhost:8080/home/";
 
-static API_BASE_URL: &str = "http://localhost:8080/user/";
+static API_BASE_USER_URL: &str = "http://localhost:8080/user/";
 static API_BASE_USERCODE_URL: &str = "http://localhost:8080/usercode/";
 static API_BASE_REGISTER_URL: &str = "http://localhost:8080/user/register/";
 
@@ -62,7 +63,10 @@ fn main() -> Result<(), Box<dyn Error>> {
 }
 
 fn user_handler(e: UserEvent, c: lambda::Context) -> Result<CustomOutput, HandlerError> {
-    if e.event_type == 1{
+    if e.event_type == 0{
+        return home_handler(e, c);
+    }
+    else if e.event_type == 1{
         return get_user_handler(e, c);
     }
     else if e.event_type == 2{
@@ -74,6 +78,27 @@ fn user_handler(e: UserEvent, c: lambda::Context) -> Result<CustomOutput, Handle
 }
 
 
+fn home_handler(e: UserEvent, c: lambda::Context) -> Result<CustomOutput, HandlerError> {
+    let mut map = HashMap::new();
+    let mut response=reqwest::Client::new()
+    .post(API_BASE_USER_URL)
+    .json(&map)
+    .send()
+    .unwrap();
+    // copy the response body directly to stdout
+    let mut buf: Vec<u8> = vec![];
+    response.copy_to(&mut buf).unwrap();
+    let result = std::str::from_utf8(&buf).unwrap();
+
+    Ok(CustomOutput {
+        is_base64_encoded: false,
+        status_code: 200,
+        message: format!("{}!", result.to_string()),
+    })
+}
+
+
+
 
 fn get_user_handler(e: UserEvent, c: lambda::Context) -> Result<CustomOutput, HandlerError> {
 
@@ -81,7 +106,6 @@ fn get_user_handler(e: UserEvent, c: lambda::Context) -> Result<CustomOutput, Ha
         error!("Empty user mobile and user name  in request {}", c.aws_request_id);
         return Err(c.new_error("both mobile and username are empty"));
     }
-
     // if e.user_name == "" {
     //     error!("Empty user name in request {}", c.aws_request_id);
     //     return Err(c.new_error("Empty username"));
@@ -96,7 +120,7 @@ fn get_user_handler(e: UserEvent, c: lambda::Context) -> Result<CustomOutput, Ha
     map.insert("password", e.password);
     map.insert("mobile", e.mobile);
     let mut response=reqwest::Client::new()
-    .post(API_BASE_URL)
+    .post(API_BASE_USER_URL)
     .json(&map)
     .send()
     .unwrap();
