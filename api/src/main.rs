@@ -62,18 +62,18 @@ fn main() -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
-fn user_handler(e: UserEvent, c: lambda::Context) -> Result<CustomOutput, HandlerError> {
-    if e.event_type == 0{
-        return home_handler(e, c);
+fn user_handler(event: UserEvent, context: lambda::Context) -> Result<CustomOutput, HandlerError> {
+    if e.event_type == 0 {
+        return home_handler(event, context);
     }
-    else if e.event_type == 1{
-        return get_user_handler(e, c);
+    else if e.event_type == 1 {
+        return get_user_handler(event, context);
     }
-    else if e.event_type == 2{
-        return user_handler_for_send_user_code(e, c);
+    else if e.event_type == 2 {
+        return user_handler_for_send_user_code(event, context);
     }
     else {
-        return user_handler_registe_user(e, c);
+        return user_handler_registe_user(event, context);
     }
 }
 
