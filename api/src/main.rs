@@ -13,6 +13,11 @@ use reqwest::StatusCode;
 use lambda::error::HandlerError;
 use std::error::Error;
 
+use rand::Rng;
+use rand::distributions::{Bernoulli, Normal, Uniform};
+
+use std::ops::Range;
+
 #[derive(Deserialize, Clone)]
 struct UserEvent {
     #[serde(rename = "userName")]
@@ -49,10 +54,28 @@ impl CustomOutput {
 }
 //https://robertohuertas.com/2018/12/02/aws-lambda-rust/
 static API_BASE_URL: &str = "http://localhost:8080/home/";
-
 static API_BASE_USER_URL: &str = "http://localhost:8080/user/";
 static API_BASE_USERCODE_URL: &str = "http://localhost:8080/usercode/";
 static API_BASE_REGISTER_URL: &str = "http://localhost:8080/user/register/";
+
+#[derive(Deserialize)]
+#[serde(tag = "distribution", content = "parameters", rename_all = "lowercase")]
+enum RngRequest {
+    Register {
+        user_name: String,
+        password: String,
+        code: u32,
+        mobile: String,
+    },
+    Login {
+        password: String,
+        code: u32,
+        mobile: String,
+    },
+    Default {
+        mobile: String,
+    },
+}
 
 
 fn main() -> Result<(), Box<dyn Error>> {
