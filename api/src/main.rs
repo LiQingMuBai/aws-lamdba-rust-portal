@@ -85,6 +85,50 @@ fn main() -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
+fn rng_handler(event: RngRequest, _ctx: lambda::Context) -> Result<CustomOutput, HandlerError> {
+    let mut rng = rand::thread_rng();
+    let value = {
+        match event {
+               RngRequest::Register { user_name, password, code, mobile } => {
+                   println!("register")
+               },
+               RngRequest::Login { password, code, mobile } => {
+                   println!("Login")
+               },
+               RngRequest::Default { mobile } => {
+                   println!("send sms message")
+               },
+        }
+    };
+    Ok(CustomOutput {
+        is_base64_encoded: false,
+        status_code: 200,
+        message: format!("{}!", "success".to_string()),
+    })
+}
+
+
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn handler_handles() {
+        let request = Request::default();
+        let expected = CustomOutput {
+        is_base64_encoded: false,
+        status_code: 200,
+        message: format!("{}!", "success".to_string()),
+    }
+        .into_response();
+        let response = rng_handler(request, Context::default())
+            .expect("expected Ok(_) value")
+            .into_response();
+        assert_eq!(response.body(), expected.body())
+    }
+}
+
 fn user_handler(event: UserEvent, context: lambda::Context) -> Result<CustomOutput, HandlerError> {
     if event.event_type == 0 {
         return home_handler(event, context);
